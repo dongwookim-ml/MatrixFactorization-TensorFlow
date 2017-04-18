@@ -10,11 +10,12 @@ from smf import SMF
 num_user = 943
 num_item = 1682
 
-n_steps = 200000
+n_trained_data = 10000000
 batch_sizes = [256, 512, 1024]
-reg_lambdas = [0, 1e-10, 1e-7, 1e-5]
-learning_rates = [0.001, 0.002, 0.01]
-latent_dims = [25, 50]
+# reg_lambdas = [0, 1e-10, 1e-7, 1e-5]
+reg_lambdas = [0, 1e-5, 1e-3, 1e-1, 1]
+learning_rates = [0.001, 0.0001]
+latent_dims = [25, 50, 100]
 
 def read_dataset():
     M = np.zeros([num_user, num_item])
@@ -45,14 +46,17 @@ def train_test_validation():
     for learning_rate, batch_size, reg_lambda, latent_dim in itertools.product(learning_rates, batch_sizes, reg_lambdas, latent_dims):
         result_path = "{0}_{1}_{2}_{3}".format(learning_rate, batch_size, reg_lambda, latent_dim)
         if not os.path.exists(result_path + "/model.ckpt.index"):
-            with tf.Session() as sess:
+            config = tf.ConfigProto()
+            config.gpu_options.allow_growth=True
+            with tf.Session(config=config) as sess:
+                n_steps = int(n_trained_data / batch_size)
                 model = SMF(sess, M, latent_dim, learning_rate=learning_rate, batch_size=batch_size, reg_lambda=reg_lambda)
-                best_mse, best_mae = model.train_test_validation(
+                best_rmse, best_mae = model.train_test_validation(
                     M, train_idx=train_idx, test_idx=test_idx, valid_idx=valid_idx, n_steps=n_steps, result_path=result_path)
 
-                print("Best MSE = {0}, best MAE = {1}".format(best_mse, best_mae))
+                print("Best RMSE = {0}, best MAE = {1}".format(best_rmse, best_mae))
                 with open('result.csv', 'a') as f:
-                    f.write("{0},{1},{2},{3},{4},{5}\n".format(learning_rate, batch_size, reg_lambda, latent_dim, best_mse, best_mae))
+                    f.write("{0},{1},{2},{3},{4},{5}\n".format(learning_rate, batch_size, reg_lambda, latent_dim, best_rmse, best_mae))
         tf.reset_default_graph()
 
 if __name__ == '__main__':
